@@ -1,3 +1,4 @@
+const bcrypt = require("bcrypt");
 const db = require("../services/firebase");
 
 // Fonction pour valider l'email
@@ -31,6 +32,7 @@ const createUser = async (req, res) => {
     }
 
     try {
+        // Vérification de l'existence de l'email ou du pseudo
         const emailExists = await db.collection("utilisateurs").doc(email).get();
         const pseudoQuery = await db.collection("utilisateurs").where("pseudo", "==", pseudo).get();
 
@@ -41,12 +43,17 @@ const createUser = async (req, res) => {
             return res.status(400).send({ message: "Ce pseudo est déjà utilisé." });
         }
 
+        // Hachage du mot de passe
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        // Sauvegarde de l'utilisateur avec le mot de passe haché
         const userRef = db.collection("utilisateurs").doc(email);
         await userRef.set({
             nom,
             prenom,
             email,
-            password,
+            password: hashedPassword,
             pseudo,
             abonnementActif: false,
         });
@@ -84,7 +91,10 @@ const loginUser = async (req, res) => {
 
         const userData = userDoc.data();
 
-        if (userData.password !== password) {
+        // Comparaison du mot de passe avec bcrypt
+        const isPasswordValid = await bcrypt.compare(password, userData.password);
+
+        if (!isPasswordValid) {
             return res.status(401).send({ message: "Mot de passe incorrect." });
         }
 

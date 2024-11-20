@@ -4,6 +4,9 @@ const db = require("./services/firebase");
 
 const userRoutes = require("./routes/users");
 
+const abonnementRoutes = require("./routes/abonnements");
+
+
 const app = express();
 app.use(bodyParser.json());
 
@@ -13,6 +16,10 @@ app.get("/", (req, res) => {
 
 // Utiliser les routes d'utilisateurs
 app.use("/api/users", userRoutes);
+
+// Utiliser les routes d'abonnements
+app.use("/api/abonnements", abonnementRoutes);
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
