@@ -6,6 +6,8 @@ const userRoutes = require("./routes/users");
 
 const abonnementRoutes = require("./routes/abonnements");
 
+const videoRoutes = require("./routes/videos");
+
 
 const app = express();
 app.use(bodyParser.json());
@@ -20,6 +22,8 @@ app.use("/api/users", userRoutes);
 // Utiliser les routes d'abonnements
 app.use("/api/abonnements", abonnementRoutes);
 
+// Utiliser les routes de vidéos
+app.use("/api/videos", videoRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
