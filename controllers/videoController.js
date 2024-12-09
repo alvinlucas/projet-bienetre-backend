@@ -50,4 +50,37 @@ const getVideo = async (req, res) => {
     }
 };
 
-module.exports = { addVideo, getVideo };
+// Récupérer toutes les vidéos actives
+const getActiveVideos = async (req, res) => {
+    const user = req.user; // Supposons que l'utilisateur est authentifié et ses données sont disponibles
+
+    try {
+        const now = new Date();
+
+        // Récupérer toutes les vidéos dont la date d'expiration n'est pas encore passée
+        const videosRef = db.collection("videos");
+        const snapshot = await videosRef.get();
+
+        const videos = [];
+        snapshot.forEach((doc) => {
+            const video = doc.data();
+            const dateExpiration = new Date(video.dateExpiration);
+
+            // Logique de visibilité pour les abonnés
+            const isVideoVisibleToUser =
+                dateExpiration > now || // La vidéo n'est pas expirée
+                (user.dateFinAbonnement &&
+                    dateExpiration <= new Date(user.dateFinAbonnement)); // Vidéo expirée mais dans la période d'abonnement
+
+            if (isVideoVisibleToUser) {
+                videos.push(video);
+            }
+        });
+
+        res.status(200).send({ videos });
+    } catch (error) {
+        res.status(500).send({ message: "Erreur lors de la récupération des vidéos.", error });
+    }
+};
+
+module.exports = { addVideo, getVideo, getActiveVideos };

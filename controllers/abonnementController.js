@@ -4,8 +4,6 @@ const axios = require("axios");
 const qs = require("qs");
 const { sendEmail } = require("../services/emailService");
 
-
-
 // Créer un abonnement
 const createSubscription = async (req, res) => {
     const { email, paymentMethodId } = req.body;
@@ -29,11 +27,26 @@ const createSubscription = async (req, res) => {
             expand: ["latest_invoice.payment_intent"],
         });
 
+        const now = new Date();
+        const dateFin = new Date(subscription.current_period_end * 1000); // Date d'expiration depuis Stripe
+
         // Enregistrer l'abonnement dans Firestore
+        const abonnementRef = db.collection("abonnements").doc(subscription.id);
+        await abonnementRef.set({
+            abonnementId: subscription.id,
+            stripeSubscriptionId: subscription.id,
+            stripeCustomerId: customer.id,
+            userId: email,
+            type: "Trimestriel", // Exemple de type
+            dateDebut: now.toISOString(),
+            dateFin: dateFin.toISOString(),
+            status: "Actif",
+        });
+
+        // Mettre à jour l'utilisateur avec abonnementId
         const userRef = db.collection("utilisateurs").doc(email);
         await userRef.update({
-            abonnementActif: true,
-            abonnementId: subscription.id,
+            abonnementId: subscription.id, // Associe l'abonnement à l'utilisateur
         });
 
         res.status(200).send({
@@ -45,6 +58,8 @@ const createSubscription = async (req, res) => {
     }
 };
 
+
+
 // Annuler un abonnement
 const cancelSubscription = async (req, res) => {
     const { email } = req.body;
@@ -54,7 +69,6 @@ const cancelSubscription = async (req, res) => {
     }
 
     try {
-        // Récupérer l'utilisateur dans Firestore
         const userRef = db.collection("utilisateurs").doc(email);
         const userDoc = await userRef.get();
 
@@ -62,61 +76,144 @@ const cancelSubscription = async (req, res) => {
             return res.status(404).send({ message: "Utilisateur non trouvé." });
         }
 
-        const userData = userDoc.data();
+        const abonnementRef = db.collection("abonnements").where("userId", "==", email);
+        const abonnements = await abonnementRef.get();
 
-        // Vérifier si l'utilisateur a un abonnement actif
-        const subscriptionId = userData.abonnementId;
-        if (!userData.abonnementActif || !subscriptionId) {
+        if (abonnements.empty) {
+            return res.status(404).send({ message: "Aucun abonnement trouvé pour cet utilisateur." });
+        }
+
+        const abonnementData = abonnements.docs[0].data();
+        const subscriptionId = abonnementData.stripeSubscriptionId;
+        const now = new Date();
+        const dateFin = new Date(abonnementData.dateFin);
+
+        if (!abonnementData || abonnementData.status !== "Actif") {
             return res.status(400).send({ message: "Aucun abonnement actif trouvé pour cet utilisateur." });
         }
 
-        // Planifier l'annulation à la fin de la période
-        console.log("Planification de l'annulation de l'abonnement avec l'ID :", subscriptionId);
-        const response = await axios.post(
-            `https://api.stripe.com/v1/subscriptions/${subscriptionId}`,
-            qs.stringify({ cancel_at_period_end: true }),
-            {
-                headers: {
-                    Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-            }
-        );
+        if (dateFin <= now) {
+            await abonnements.docs[0].ref.update({ status: "Expiré" });
+            return res.status(200).send({ message: "Abonnement déjà expiré et statut mis à jour." });
+        }
 
-        console.log("Abonnement mis à jour pour annulation à la fin de la période :", response.data);
-
-        // Envoyer un email à l'utilisateur
-        const subject = "Votre abonnement sera annulé à la fin de la période";
-        const html = `
-            <h1>Bonjour ${userData.nom || "Utilisateur"}</h1>
-            <p>Nous vous confirmons que votre abonnement sera annulé à la fin de la période actuelle.</p>
-            <p>Vous pourrez continuer à profiter des services jusqu'au ${new Date(response.data.current_period_end * 1000).toLocaleDateString()}.</p>
-            <p>Si vous changez d'avis, vous pouvez réactiver votre abonnement depuis votre compte.</p>
-            <p>Merci de votre confiance,</p>
-            <p>L'équipe Bien-Être</p>
-        `;
-
-        await sendEmail(email, subject, html);
-
-        // Mettre à jour Firestore
-        await userRef.update({
-            abonnementActif: true,
-            abonnementAnnuleFinPeriode: true,
+        await stripe.subscriptions.update(subscriptionId, {
+            cancel_at_period_end: true,
         });
 
-        res.status(200).send({
-            message: "Annulation planifiée avec succès à la fin de la période et email envoyé.",
-            subscription: response.data,
-        });
+        await abonnements.docs[0].ref.update({ status: "Annulation planifiée" });
+
+        res.status(200).send({ message: "Annulation planifiée avec succès." });
     } catch (error) {
-        console.error("Erreur lors de la planification de l'annulation de l'abonnement :", error.response?.data || error.message);
         res.status(500).send({
-            message: "Erreur lors de la planification de l'annulation de l'abonnement.",
+            message: "Erreur lors de l'annulation de l'abonnement.",
             error: error.response?.data || error.message,
         });
     }
 };
 
 
+const checkSubscriptionStatus = async (req, res) => {
+    const { email } = req.params;
 
-module.exports = { createSubscription, cancelSubscription };
+    try {
+        const abonnements = await db.collection("abonnements").where("userId", "==", email).get();
+
+        if (abonnements.empty) {
+            return res.status(404).send({ message: "Aucun abonnement trouvé." });
+        }
+
+        const abonnement = abonnements.docs[0].data();
+        const now = new Date();
+        const dateFin = new Date(abonnement.dateFin);
+
+        const isExpired = dateFin <= now;
+
+        if (isExpired && abonnement.status === "Actif") {
+            await abonnements.docs[0].ref.update({ status: "Expiré" });
+            abonnement.status = "Expiré";
+        }
+
+        res.status(200).send({
+            message: "Statut de l'abonnement récupéré avec succès.",
+            type: abonnement.type,
+            dateDebut: abonnement.dateDebut,
+            dateFin: abonnement.dateFin,
+            status: abonnement.status,
+        });
+    } catch (error) {
+        res.status(500).send({ message: "Erreur lors de la récupération du statut de l'abonnement.", error });
+    }
+};
+
+const renewSubscription = async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).send({ message: "L'email est requis pour renouveler l'abonnement." });
+    }
+
+    try {
+        const abonnementRef = db.collection("abonnements").where("userId", "==", email);
+        const abonnementSnapshot = await abonnementRef.get();
+
+        if (abonnementSnapshot.empty) {
+            return res.status(404).send({ message: "Aucun abonnement trouvé." });
+        }
+
+        const abonnement = abonnementSnapshot.docs[0];
+        const abonnementData = abonnement.data();
+
+        // Calculer la nouvelle date de fin
+        const currentEndDate = new Date(abonnementData.dateFin);
+        const newEndDate = new Date(currentEndDate);
+        newEndDate.setMonth(newEndDate.getMonth() + 3); // Ajouter 3 mois (ou la durée de l'abonnement)
+
+        // Mettre à jour la date de fin uniquement
+        await abonnement.ref.update({
+            dateFin: newEndDate.toISOString(),
+        });
+
+        res.status(200).send({
+            message: "Abonnement renouvelé avec succès.",
+            updatedAbonnement: {
+                ...abonnementData,
+                dateFin: newEndDate.toISOString(),
+            },
+        });
+    } catch (error) {
+        res.status(500).send({
+            message: "Erreur lors du renouvellement de l'abonnement.",
+            error,
+        });
+    }
+};
+
+
+const toggleAutoRenew = async (req, res) => {
+    const { email, autoRenew } = req.body;
+
+    if (!email || autoRenew === undefined) {
+        return res.status(400).send({ message: "Email et autoRenew sont requis." });
+    }
+
+    try {
+        const abonnementRef = db.collection("abonnements").where("userId", "==", email);
+        const abonnements = await abonnementRef.get();
+
+        if (abonnements.empty) {
+            return res.status(404).send({ message: "Aucun abonnement trouvé." });
+        }
+
+        await abonnements.docs[0].ref.update({ autoRenew });
+        res.status(200).send({ message: "Renouvellement automatique mis à jour." });
+    } catch (error) {
+        res.status(500).send({ message: "Erreur lors de la mise à jour du renouvellement automatique.", error });
+    }
+};
+
+
+
+
+
+module.exports = { createSubscription, cancelSubscription, checkSubscriptionStatus, renewSubscription, toggleAutoRenew };

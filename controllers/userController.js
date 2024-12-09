@@ -1,5 +1,9 @@
 const bcrypt = require("bcrypt");
 const db = require("../services/firebase");
+const jwt = require("jsonwebtoken");
+
+require("dotenv").config();
+const SECRET_KEY = process.env.JWT_SECRET;
 
 // Fonction pour valider l'email
 const isValidEmail = (email) => {
@@ -55,7 +59,7 @@ const createUser = async (req, res) => {
             email,
             password: hashedPassword,
             pseudo,
-            abonnementActif: false,
+            abonnementId: null,
         });
 
         res.status(201).send({ message: "Utilisateur créé avec succès !" });
@@ -63,6 +67,7 @@ const createUser = async (req, res) => {
         res.status(500).send({ message: "Erreur lors de la création de l'utilisateur.", error });
     }
 };
+
 
 // Connexion d'un utilisateur
 const loginUser = async (req, res) => {
@@ -98,10 +103,41 @@ const loginUser = async (req, res) => {
             return res.status(401).send({ message: "Mot de passe incorrect." });
         }
 
-        res.status(200).send({ message: "Connexion réussie !", data: userData });
+        // Vérifier si l'utilisateur a un abonnement actif
+        const abonnementRef = db.collection("abonnements").where("userId", "==", userData.email);
+        const abonnementSnapshot = await abonnementRef.get();
+
+        if (!abonnementSnapshot.empty) {
+            const abonnementData = abonnementSnapshot.docs[0].data();
+            userData.abonnementId = abonnementData.abonnementId; // Ajouter l'abonnementId à l'utilisateur
+        } else {
+            userData.abonnementId = null; // Aucun abonnement trouvé
+        }
+
+        // Générer le token JWT
+        const token = jwt.sign(
+            {
+                email: userData.email,
+                prenom: userData.prenom,
+                abonnementId: userData.abonnementId,
+            },
+            process.env.JWT_SECRET, // Utiliser la clé secrète
+            { expiresIn: "1h" } // Durée de validité du token
+        );
+
+        // Inclure `abonnementId` dans la réponse utilisateur
+        res.status(200).send({
+            message: "Connexion réussie !",
+            user: userData,
+            token, // Inclure le token dans la réponse
+        });
     } catch (error) {
         res.status(500).send({ message: "Erreur lors de la connexion.", error });
     }
 };
+
+
+
+
 
 module.exports = { createUser, loginUser };
