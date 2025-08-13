@@ -1,29 +1,33 @@
-name: Tests backend
+name: CI - Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
+    env:
+      FIREBASE_KEY_JSON: ${{ secrets.FIREBASE_KEY_JSON }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      EMAIL_USER: ${{ secrets.EMAIL_USER }}
+      EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
     steps:
-      - name: Checkout le code
-        uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 18
 
-      - name: Installer les dépendances
+      - name: Install dependencies
         run: npm install
 
-      - name: Lancer les tests
+      - name: Run tests
         run: npm test
-
-      - name: Afficher la couverture de test (optionnel)
-        run: npm test -- --coverage
