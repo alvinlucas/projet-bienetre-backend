@@ -10,7 +10,7 @@ const addVideo = async (req, res) => {
     }
 
     try {
-        // Vérifiez si l'utilisateur est un administrateur (par sécurité supplémentaire)
+        // Vérifiez si l'utilisateur est un administrateur
         if (!req.user || !req.user.isAdmin) {
             return res.status(403).send({ message: "Accès refusé : vous n'êtes pas administrateur." });
         }

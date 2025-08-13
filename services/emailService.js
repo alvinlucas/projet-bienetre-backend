@@ -3,10 +3,10 @@ require("dotenv").config();
 
 // Configuration du transporteur
 const transporter = nodemailer.createTransport({
-    service: "gmail", // Vous pouvez remplacer par un autre service (Outlook, Yahoo, etc.)
+    service: "gmail",
     auth: {
-        user: process.env.EMAIL_USER, // Votre email
-        pass: process.env.EMAIL_PASS, // Votre mot de passe ou mot de passe d'application
+        user: process.env.EMAIL_USER, // Mon email
+        pass: process.env.EMAIL_PASS, // Mon mot de passe ou mot de passe d'application
     },
 });
 
@@ -15,9 +15,9 @@ const sendEmail = async (to, subject, html) => {
     try {
         const mailOptions = {
             from: process.env.EMAIL_USER, // L'email expéditeur
-            to, // L'email du destinataire
-            subject, // Le sujet de l'email
-            html, // Le contenu HTML
+            to,
+            subject,
+            html,
         };
 
         const info = await transporter.sendMail(mailOptions);
