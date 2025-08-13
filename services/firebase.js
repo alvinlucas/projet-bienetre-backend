@@ -1,9 +1,9 @@
 const admin = require("firebase-admin");
 if (process.env.FIREBASE_KEY_JSON) {
-    // En CI GitHub : on lit la clé JSON à partir de la variable d'environnement
-    serviceAccount = JSON.parse(process.env.FIREBASE_KEY_JSON);
+    serviceAccount = JSON.parse(
+        process.env.FIREBASE_KEY_JSON.replace(/\\n/g, '\n')
+    );
 } else {
-    // En local : on lit le fichier
     serviceAccount = require("../serviceAccountKey.json");
 }
 admin.initializeApp({
