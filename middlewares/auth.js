@@ -1,23 +1,30 @@
+const jwt = require("jsonwebtoken");
 const db = require("../services/firebase");
 
 const isAdmin = async (req, res, next) => {
-    const { email } = req.body; // L'email de l'utilisateur doit être inclus dans la requête
+    const authHeader = req.headers.authorization;
 
-    if (!email) {
-        return res.status(400).send({ message: "L'email de l'administrateur est requis." });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).send({ message: "Accès non autorisé : token manquant." });
     }
 
-    try {
-        const adminRef = db.collection("utilisateurs").doc(email);
-        const adminDoc = await adminRef.get();
+    const token = authHeader.split(" ")[1];
 
-        if (!adminDoc.exists || !adminDoc.data().isAdmin) {
+    try {
+        // Vérifiez et décodez le token
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Vérifiez si isAdmin est défini dans le token
+        if (!decodedToken.isAdmin) {
             return res.status(403).send({ message: "Accès refusé : vous n'êtes pas administrateur." });
         }
 
+        // Ajoutez les informations utilisateur au req pour les contrôleurs suivants
+        req.user = decodedToken;
+
         next(); // Passe au contrôleur suivant
     } catch (error) {
-        res.status(500).send({ message: "Erreur lors de la vérification des droits d'administration.", error });
+        res.status(401).send({ message: "Token invalide ou expiré.", error });
     }
 };
 

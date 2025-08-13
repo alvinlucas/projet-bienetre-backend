@@ -111,7 +111,7 @@ const loginUser = async (req, res) => {
             const abonnementData = abonnementSnapshot.docs[0].data();
             userData.abonnementId = abonnementData.abonnementId; // Ajouter l'abonnementId à l'utilisateur
         } else {
-            userData.abonnementId = null; // Aucun abonnement trouvé
+            userData.abonnementId = null;
         }
 
         // Générer le token JWT
@@ -120,16 +120,17 @@ const loginUser = async (req, res) => {
                 email: userData.email,
                 prenom: userData.prenom,
                 abonnementId: userData.abonnementId,
+                isAdmin: userData.isAdmin || false,
             },
-            process.env.JWT_SECRET, // Utiliser la clé secrète
-            { expiresIn: "1h" } // Durée de validité du token
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" }
         );
 
         // Inclure `abonnementId` dans la réponse utilisateur
         res.status(200).send({
             message: "Connexion réussie !",
             user: userData,
-            token, // Inclure le token dans la réponse
+            token,
         });
     } catch (error) {
         res.status(500).send({ message: "Erreur lors de la connexion.", error });
