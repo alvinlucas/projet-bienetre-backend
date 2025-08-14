@@ -42,7 +42,7 @@ EMAIL_PASS=mot-de-passe-app
 JWT_SECRET=une-clé-secrète-longue-et-unique
 ```
 
-> Ne versionne jamais ce fichier. Ces données sont **sensibles**.
+> Ne jamais versionner ce fichier. Ces données sont **sensibles**.
 
 ---
 
@@ -79,14 +79,14 @@ Par défaut, l'application démarre sur le port `5000`.
 
 ## 📚 Documentation
 
-📄 Tous les fichiers de documentation se trouvent à la racine ou dans le dossier `/documentation` (à créer si besoin) :
+📄 Tous les fichiers de documentation se trouvent dans le dossier `/documentation` :
 
-- [`📘 cahier_recettes.md`](./cahier_recettes.md) — Scénarios de tests + résultats attendus.
-- [`📘 manuel_deploiement.md`](./manuel_deploiement.md) — Instructions d'installation & déploiement.
-- [`📘 manuel_utilisation.md`](./manuel_utilisation.md) — Appels API avec Postman + rôles.
-- [`📘 manuel_mise_a_jour.md`](./manuel_mise_a_jour.md) — Mise à jour des dépendances & redéploiement.
-- [`📘 bugfixes.md`](./bugfixes.md) — Liste des bugs corrigés & améliorations proposées.
-- [`📘 version.md`](./version.md) — Historique des versions.
+- [`📘 cahier_recettes.md`](./documentation/cahier_recettes.md) — Scénarios de tests + résultats attendus.
+- [`📘 manuel_deploiement.md`](./documentation/manuel_deploiement.md) — Instructions d'installation & déploiement.
+- [`📘 manuel_utilisation.md`](./documentation/manuel_utilisation.md) — Appels API avec Postman + rôles.
+- [`📘 manuel_mise_a_jour.md`](./documentation/manuel_mise_a_jour.md) — Mise à jour des dépendances & redéploiement.
+- [`📘 bugfixes.md`](./documentation/bugfixes.md) — Liste des bugs corrigés & améliorations proposées.
+- [`📘 version.md`](./documentation/version.md) — Historique des versions.
 
 ---
 
@@ -97,5 +97,6 @@ Par défaut, l'application démarre sur le port `5000`.
 - Stripe (paiement)
 - Nodemailer (envoi d’e-mails)
 - Jest / Supertest (tests)
+
 
 
